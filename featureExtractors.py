@@ -107,3 +107,72 @@ class SimpleExtractor(FeatureExtractor):
             features["closest-food"] = float(dist) / (walls.width * walls.height)
         features.divideAll(10.0)
         return features
+
+
+class AdvancedExtractor(FeatureExtractor):
+    """
+    Returns simple features for a basic reflex Pacman:
+    - whether food will be eaten
+    - how far away the next food is
+    - whether a ghost collision is imminent
+    - whether a ghost is one step away
+    """
+
+    def getFeatures(self, state, action):
+        def get_manhattan_distances(list_of_ghost):
+            return map(lambda g: util.manhattanDistance(pos, g.getPosition()), list_of_ghost)
+
+        # extract the grid of food and wall locations and get the ghost locations
+        food = state.getFood()
+        walls = state.getWalls()
+        ghosts = state.getGhostPositions()
+
+        capsules_left = len(state.getCapsules())
+        scared_ghosts = []
+        active_ghosts = []
+
+        features = util.Counter()
+
+        for ghost in state.getGhostStates():
+            if not ghost.scaredTimer:
+                active_ghosts.append(ghost)
+            else:
+                scared_ghosts.append(ghost)
+
+        pos = state.getPacmanPosition()
+
+        features["bias"] = 1.0
+
+        # compute the location of pacman after he takes the action
+        x, y = state.getPacmanPosition()
+        dx, dy = Actions.directionToVector(action)
+        next_x, next_y = int(x + dx), int(y + dy)
+
+        # count the number of ghosts 1-step away
+        features["#-of-ghosts-1-step-away"] = sum(
+            (next_x, next_y) in Actions.getLegalNeighbors(g, walls) for g in ghosts)
+
+        # if there is no danger of ghosts then add the food feature
+        if not features["#-of-ghosts-1-step-away"] and food[next_x][next_y]:
+            features["eats-food"] = 1.0
+
+        dist = closestFood((next_x, next_y), food, walls)
+        if dist is not None:
+            # make the distance a number less than one otherwise the update
+            # will diverge wildly
+            features["closest-food"] = float(dist) / (walls.width * walls.height)
+
+        if scared_ghosts:
+            distance_to_closest_scared_ghost = min(get_manhattan_distances(scared_ghosts))
+            if active_ghosts:
+                distance_to_closest_active_ghost = min(get_manhattan_distances(active_ghosts))
+            else:
+                distance_to_closest_active_ghost = 10
+
+            features["capsules"] = capsules_left
+            if distance_to_closest_scared_ghost <= 8 and distance_to_closest_active_ghost >= 2:
+                features["#-of-ghosts-1-step-away"] = 0
+                features["eats-food"] = 0.0
+
+        features.divideAll(10.0)
+        return features

@@ -41,7 +41,7 @@ class QLearningAgent(ReinforcementAgent):
     def __init__(self, **args):
         "You can initialize Q-values here..."
         ReinforcementAgent.__init__(self, **args)
-
+        self.q_values = util.Counter()
         "*** YOUR CODE HERE ***"
 
     def getQValue(self, state, action):
@@ -51,7 +51,7 @@ class QLearningAgent(ReinforcementAgent):
           or the Q node value otherwise
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        return self.q_values[(state, action)]
 
 
     def computeValueFromQValues(self, state):
@@ -62,7 +62,13 @@ class QLearningAgent(ReinforcementAgent):
           terminal state, you should return a value of 0.0.
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        q_vals = []
+        for action in self.getLegalActions(state):
+            q_vals.append(self.getQValue(state, action))
+        if len(self.getLegalActions(state)) == 0:
+            return 0.0
+        else:
+            return max(q_vals)
 
     def computeActionFromQValues(self, state):
         """
@@ -71,7 +77,14 @@ class QLearningAgent(ReinforcementAgent):
           you should return None.
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        max_action = None
+        max_q_val = 0
+        for action in self.getLegalActions(state):
+            q_val = self.getQValue(state, action)
+            if q_val > max_q_val or max_action is None:
+                max_q_val = q_val
+                max_action = action
+        return max_action
 
     def getAction(self, state):
         """
@@ -86,11 +99,11 @@ class QLearningAgent(ReinforcementAgent):
         """
         # Pick Action
         legalActions = self.getLegalActions(state)
-        action = None
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
-
-        return action
+        if util.flipCoin(self.epsilon):
+            return random.choice(legalActions)
+        else:
+            return self.computeActionFromQValues(state)
 
     def update(self, state, action, nextState, reward):
         """
@@ -102,7 +115,14 @@ class QLearningAgent(ReinforcementAgent):
           it will be called on your behalf
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        first_part = (1 - self.alpha) * self.getQValue(state, action)
+        if len(self.getLegalActions(nextState)) == 0:
+            sample = reward
+        else:
+            sample = reward + (self.discount * max(
+                [self.getQValue(nextState, next_action) for next_action in self.getLegalActions(nextState)]))
+        second_part = self.alpha * sample
+        self.q_values[(state, action)] = first_part + second_part
 
     def getPolicy(self, state):
         return self.computeActionFromQValues(state)
@@ -165,14 +185,33 @@ class ApproximateQAgent(PacmanQAgent):
           where * is the dotProduct operator
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        q_value = 0
+        features = self.featExtractor.getFeatures(state, action)
+        counter = 0
+        for feature in features:
+            q_value += features[feature] * self.weights[feature]
+            counter += 1
+
+        return q_value
 
     def update(self, state, action, nextState, reward):
         """
            Should update your weights based on transition
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        features = self.featExtractor.getFeatures(state, action)
+        features_list = features.sortedKeys()
+        counter = 0
+        for feature in features:
+            difference = 0
+            if len(self.getLegalActions(nextState)) == 0:
+                difference = reward - self.getQValue(state, action)
+            else:
+                difference = (reward + self.discount * max([self.getQValue(nextState, nextAction) for nextAction in
+                                                            self.getLegalActions(nextState)])) - self.getQValue(state,
+                                                                                                                action)
+            self.weights[feature] = self.weights[feature] + self.alpha * difference * features[feature]
+            counter += 1
 
     def final(self, state):
         "Called at the end of each game."

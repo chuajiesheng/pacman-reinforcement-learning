@@ -148,31 +148,33 @@ class AdvancedExtractor(FeatureExtractor):
         dx, dy = Actions.directionToVector(action)
         next_x, next_y = int(x + dx), int(y + dy)
 
-        # count the number of ghosts 1-step away
-        features["#-of-ghosts-1-step-away"] = sum(
-            (next_x, next_y) in Actions.getLegalNeighbors(g, walls) for g in ghosts)
+        # count the number of active ghosts 1-step away
+        features["#-of-ghosts-1-step-away"] = sum((next_x, next_y) in Actions.getLegalNeighbors(g.getPosition(), walls) for g in active_ghosts)
 
         # if there is no danger of ghosts then add the food feature
         if not features["#-of-ghosts-1-step-away"] and food[next_x][next_y]:
             features["eats-food"] = 1.0
 
-        dist = closestFood((next_x, next_y), food, walls)
-        if dist is not None:
+        dist_to_food = closestFood((next_x, next_y), food, walls)
+        if dist_to_food is not None:
             # make the distance a number less than one otherwise the update
             # will diverge wildly
-            features["closest-food"] = float(dist) / (walls.width * walls.height)
+            features["closest-food"] = float(dist_to_food) / (walls.width * walls.height)
 
         if scared_ghosts:
-            distance_to_closest_scared_ghost = min(get_manhattan_distances(scared_ghosts))
+            dist_to_closest_scared_ghost = min(get_manhattan_distances(scared_ghosts))
+
             if active_ghosts:
-                distance_to_closest_active_ghost = min(get_manhattan_distances(active_ghosts))
+                dist_to_closest_active_ghost = min(get_manhattan_distances(active_ghosts))
             else:
-                distance_to_closest_active_ghost = 10
+                dist_to_closest_active_ghost = 10
 
             features["capsules"] = capsules_left
-            if distance_to_closest_scared_ghost <= 8 and distance_to_closest_active_ghost >= 2:
+            if dist_to_closest_scared_ghost <= 8 and dist_to_closest_active_ghost >= 2:
                 features["#-of-ghosts-1-step-away"] = 0
                 features["eats-food"] = 0.0
+
+
 
         features.divideAll(10.0)
         return features

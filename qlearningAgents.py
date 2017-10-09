@@ -225,8 +225,8 @@ class TensorFlowQAgent(PacmanQAgent):
         PacmanQAgent.__init__(self, **args)
         self.weights = util.Counter()
 
-        INPUT_NEURONS = 4
-        HIDDEN_NEURONS = 64 * 11 * 10
+        INPUT_NEURONS = 5
+        HIDDEN_NEURONS = 5 * 5 * 5
         OUTPUT_NEURONS = 5  # action space
         self.DIRECTIONS = [Directions.NORTH,
                            Directions.SOUTH,
@@ -282,19 +282,13 @@ class TensorFlowQAgent(PacmanQAgent):
         "*** YOUR CODE HERE ***"
 
         # Add the experience to replay memory
-        value_for_state = []
-        value = [v for _, v in self.featExtractor.getFeatures(state, action).items()]
-        if len(value) == 3:
-            value_for_state.append([0] + value)
-        else:
-            value_for_state.append(value)
+        value_for_state = [[v for _, v in self.featExtractor.getFeatures(state, action).items()]]
 
         value_for_next_state = []
         for nextAction in self.getLegalActions(next_state):
             features = [v for _, v in self.featExtractor.getFeatures(next_state, nextAction).items()]
-            if len(features) == 3:
-                features = [0] + features
             value_for_next_state.append(features)
+
         done = len(self.getLegalActions(next_state)) == 0
 
         self.replay_memory.append((value_for_state, action, reward, value_for_next_state, done))
@@ -307,7 +301,7 @@ class TensorFlowQAgent(PacmanQAgent):
         for train_state, train_action, train_reward, train_nextState, isTerminal in sampleBatch:
             QValues = self.sess.run([self.output], feed_dict={self.ip: np.array(train_state)})[0][0]
             if isTerminal:
-                train_nextState = [[0, 0, 0, 0]]
+                train_nextState = [[0, 0, 0, 0, 0]]
             nextStateQValues = self.sess.run([self.output], feed_dict={self.ip: np.array(train_nextState)})[0][0]
             maxQVal = max(nextStateQValues)
 

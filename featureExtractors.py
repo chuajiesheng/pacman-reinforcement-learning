@@ -132,6 +132,8 @@ class AdvancedExtractor(FeatureExtractor):
         active_ghosts = []
 
         features = util.Counter()
+        for k in ['capsules', 'bias', '#-of-ghosts-1-step-away', 'eats-food', 'closest-food']:
+            features[k] = 0.0
 
         for ghost in state.getGhostStates():
             if not ghost.scaredTimer:

@@ -85,6 +85,9 @@ class SimpleExtractor(FeatureExtractor):
 
         features = util.Counter()
 
+        for k in ['#-of-ghosts-1-step-away', 'bias', 'eats-food', 'closest-food']:
+            features[k] = 0.0
+
         features["bias"] = 1.0
 
         # compute the location of pacman after he takes the action
@@ -175,8 +178,6 @@ class AdvancedExtractor(FeatureExtractor):
             if dist_to_closest_scared_ghost <= 8 and dist_to_closest_active_ghost >= 2:
                 features["#-of-ghosts-1-step-away"] = 0
                 features["eats-food"] = 0.0
-
-
 
         features.divideAll(10.0)
         return features

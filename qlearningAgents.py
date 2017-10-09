@@ -225,7 +225,7 @@ class TensorFlowQAgent(PacmanQAgent):
         PacmanQAgent.__init__(self, **args)
         self.weights = util.Counter()
 
-        INPUT_NEURONS = 5
+        INPUT_NEURONS = 4
         HIDDEN_NEURONS = 5 * 5 * 5
         OUTPUT_NEURONS = 5  # action space
         self.DIRECTIONS = [Directions.NORTH,
@@ -261,11 +261,9 @@ class TensorFlowQAgent(PacmanQAgent):
           where * is the dotProduct operator
         """
         "*** YOUR CODE HERE ***"
-        q = 0
-        for f, v in self.featExtractor.getFeatures(state, action).items():  # use .iteritems() for python2
-            q += v * self.weights[f]
-
-        return q
+        state = [[v for _, v in self.featExtractor.getFeatures(state, action).items()]]
+        QValues = self.sess.run([self.output], feed_dict={self.ip: np.array(state)})[0][0]
+        return sum(QValues)
 
     def sample_memories(self, batch_size):
         indices = np.random.permutation(len(self.replay_memory))[:batch_size]
@@ -282,26 +280,19 @@ class TensorFlowQAgent(PacmanQAgent):
         "*** YOUR CODE HERE ***"
 
         # Add the experience to replay memory
-        value_for_state = [[v for _, v in self.featExtractor.getFeatures(state, action).items()]]
-
-        value_for_next_state = []
-        for nextAction in self.getLegalActions(next_state):
-            features = [v for _, v in self.featExtractor.getFeatures(next_state, nextAction).items()]
-            value_for_next_state.append(features)
-
+        value_for_state = [[v for _, v in self.featExtractor.getFeatures(state, Directions.STOP).items()]]
+        value_for_next_state = [[v for _, v in self.featExtractor.getFeatures(next_state, action).items()]]
         done = len(self.getLegalActions(next_state)) == 0
+        self.replay_memory.append((value_for_state, self.DIRECTIONS.index(action), reward, value_for_next_state, done))
 
-        self.replay_memory.append((value_for_state, action, reward, value_for_next_state, done))
         # Sample sampleBatch, a batch of training data from the replay memory
-        batch_size = 50
+        batch_size = 5
         sampleBatch = self.sample_memories(batch_size)
 
         trainingInputStates = []
         trainingTargetValues = []
         for train_state, train_action, train_reward, train_nextState, isTerminal in sampleBatch:
             QValues = self.sess.run([self.output], feed_dict={self.ip: np.array(train_state)})[0][0]
-            if isTerminal:
-                train_nextState = [[0, 0, 0, 0, 0]]
             nextStateQValues = self.sess.run([self.output], feed_dict={self.ip: np.array(train_nextState)})[0][0]
             maxQVal = max(nextStateQValues)
 
@@ -312,7 +303,7 @@ class TensorFlowQAgent(PacmanQAgent):
                 newQVal = (train_reward + self.discount * maxQVal)
 
             targetQValues = QValues.copy()
-            targetQValues[self.DIRECTIONS.index(train_action)] = newQVal
+            targetQValues[train_action] = newQVal
             trainingInputStates.append(train_state[0])
             trainingTargetValues.append(targetQValues)
 
